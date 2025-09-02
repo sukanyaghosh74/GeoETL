@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:15-3.3
+        env:
+          POSTGRES_DB: geoetl
+          POSTGRES_USER: geoetl
+          POSTGRES_PASSWORD: geoetl
+        ports:
+          - 5432:5432
+      minio:
+        image: minio/minio
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl http://localhost:9000/minio/health/live" --health-interval 5s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+      - name: Lint
+        run: |
+          ruff backend/app
+          black --check backend/app
+          isort --check-only backend/app
+      - name: Type check
+        run: |
+          mypy backend/app
+      - name: Test
+        run: |
+          pytest

@@ -1,0 +1,83 @@
+version: "3.8"
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_DB: geoetl
+      POSTGRES_USER: geoetl
+      POSTGRES_PASSWORD: geoetl
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  minio:
+    image: minio/minio
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+  mc:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+        sleep 5;
+        mc alias set local http://minio:9000 minioadmin minioadmin;
+        mc mb -p local/geoetl-artifacts || true;
+        exit 0;
+      "
+  backend:
+    build: ./backend
+    env_file:
+      - ./backend/.env.example
+    depends_on:
+      - db
+      - minio
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./sample_data:/app/sample_data
+  prefect:
+    image: prefecthq/prefect:2-python3.11
+    environment:
+      PREFECT_API_URL: http://prefect:4200/api
+    ports:
+      - "4200:4200"
+    command: ["prefect", "server", "start"]
+    volumes:
+      - prefect_data:/root/.prefect
+  worker:
+    build: ./backend
+    command: ["prefect", "worker", "start", "--pool", "default-agent-pool"]
+    env_file:
+      - ./backend/.env.example
+    depends_on:
+      - backend
+      - prefect
+    volumes:
+      - ./backend/app:/app/app
+      - ./sample_data:/app/sample_data
+volumes:
+  db_data:
+  minio_data:
+  prefect_data:
+
+# To use Airflow instead of Prefect, add:
+#  airflow:
+#    image: apache/airflow:2.7.0
+#    environment:
+#      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+#    ports:
+#      - "8080:8080"
+#    volumes:
+#      - ./dags:/opt/airflow/dags
+#    depends_on:
+#      - db
+#      - minio

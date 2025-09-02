@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "geoetl-cli"
+version = "0.1.0"
+description = "CLI for GeoETL"
+authors = ["GeoETL Team"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+typer = "^0.9.0"
+# The CLI reuses backend code, so backend must be in PYTHONPATH
+
+[tool.poetry.scripts]
+geoetl = "geoetl_cli:app"
