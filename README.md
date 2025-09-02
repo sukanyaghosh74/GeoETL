@@ -17,7 +17,7 @@ End-to-end geospatial ETL platform for satellite imagery.
 ### 1. Clone and start stack
 
 ```sh
-git clone <repo>
+git clone https://github.com/sukanyaghosh74/GeoETL.git
 cd geoetl
 cp backend/.env.example backend/.env
 docker compose up --build -d
